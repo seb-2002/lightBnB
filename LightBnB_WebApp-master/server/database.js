@@ -74,10 +74,7 @@ exports.getUserWithId = getUserWithId;
 // };
 
 const addUser = function (user) {
-  const vals = [];
-  vals.push(user.name);
-  vals.push(user.email);
-  vals.push(user.password);
+  const vals = [user.name, user.email, user.password];
 
   return pool
     .query(
@@ -118,9 +115,9 @@ const getAllReservations = function (guest_id, limit = 10) {
   AND end_date < now()::date
   GROUP BY properties.id, reservations.id
   ORDER BY start_date
-  limit 10;
+  LIMIT $2;
     `,
-      [guest_id]
+      [guest_id, limit]
     )
     .then((res) => {
       return res.rows;
@@ -208,19 +205,6 @@ LIMIT $${queryParams.length};
     })
     .catch((err) => console.error(err));
 };
-// const getAllProperties = function (options, limit = 10) {
-//   return pool
-//     .query(
-//       `SELECT * FROM properties
-//     LIMIT $1
-//     `,
-//       [limit]
-//     )
-//     .then((res) => {
-//       return res.rows;
-//     })
-//     .catch((err) => console.error(err));
-// };
 exports.getAllProperties = getAllProperties;
 
 /**
@@ -229,9 +213,24 @@ exports.getAllProperties = getAllProperties;
  * @return {Promise<{}>} A promise to the property.
  */
 const addProperty = function (property) {
-  const propertyId = Object.keys(properties).length + 1;
-  property.id = propertyId;
-  properties[propertyId] = property;
-  return Promise.resolve(property);
+  const vals = [];
+  for (let key in property) {
+    vals.push(property[key]);
+  }
+
+  return pool
+    .query(
+      `
+      INSERT INTO properties
+      (title, description, number_of_bedrooms, number_of_bathrooms, parking_spaces, cost_per_night, thumbnail_photo_url, cover_photo_url, street, country,  city, province, post_code, owner_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+      RETURNING *;
+      `,
+      vals
+    )
+    .then((res) => {
+      return res.rows[0];
+    })
+    .catch((err) => console.error(err));
 };
 exports.addProperty = addProperty;
